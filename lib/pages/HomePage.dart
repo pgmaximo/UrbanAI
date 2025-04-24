@@ -35,7 +35,7 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         leading: IconButton(
-          icon: const Icon(Icons.settings, color: AppColors.tertiary), // Ícone de configurações à esquerda
+          icon: const Icon(Icons.settings, color: AppColors.secondary), // Ícone de configurações à esquerda
           onPressed: () {
             // Implementar ação para abrir configurações
           },
@@ -97,7 +97,7 @@ class _HomePageState extends State<HomePage> {
                   width: 50, // Defina a largura desejada
                   height: 50, // Defina a altura desejada
                   child: FloatingActionButton(
-                    backgroundColor: AppColors.tertiary, // Cor do botão de envio
+                    backgroundColor: AppColors.secondary, // Cor do botão de envio
                     onPressed: _sendMessage,
                     child: const Icon(Icons.send, color: Colors.white, size: 20), // Ícone menor
                   ),

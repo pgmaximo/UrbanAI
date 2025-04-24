@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'pages/HomePage.dart';
+import 'package:urbanai/pages/WelcomePage.dart';
 
 void main() {
   runApp(MyApp());
@@ -19,24 +19,20 @@ class MyApp extends StatelessWidget {
           secondary: AppColors.secondary,
         ),
       ),
-      home: HomePage(),
+      home: WelcomePage(),
     );
   }
 }
 
 class AppColors {
-  /// Cor Primária (60%) – Azul Escuro
-  /// Transmite confiança, estabilidade e modernidade.
-  static const Color primary = Color(0xFF1A237E);
+  /// Cor de fundo principal – Bege claro/rosado.
+  static const Color background = Color(0xFFF6F0E8);
 
-  /// Cor Secundária (30%) – Verde Vibrante
-  /// Remete a crescimento, equilíbrio e harmonia.
-  static const Color secondary = Color(0xFF43A047);
+  /// Cor principal – Verde acinzentado escuro.
+  static const Color primary = Color(0xFF43523D);
 
-  /// Cor Terciária (10%) – Laranja Vibrante
-  /// Chama atenção para ações, botões de CTA e alertas.
-  static const Color tertiary = Color(0xFFFB8C00);
-
-  /// Fundo off-white, suave e agradável aos olhos.
-  static const Color background = Color(0xFFF5F5F5);
+  /// Cor secundária – Verde escuro elegante (botões principais).
+  static const Color secondary = Color(0xFF223E2D);
 }
+
+
