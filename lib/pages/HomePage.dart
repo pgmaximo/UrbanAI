@@ -1,32 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:urbanai/main.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
-  _HomePageState createState() => _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  // Controlador para gerenciar o campo de entrada de texto
   final TextEditingController _controller = TextEditingController();
-  
-  // Lista que armazena as mensagens enviadas pelo usuário e as respostas da IA
+  final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
 
-  // Função para enviar a mensagem do usuário e gerar uma resposta da IA
-  void _sendMessage() {
-    if (_controller.text.isNotEmpty) {
-      setState(() {
-        // Adiciona a mensagem do usuário à lista
-        _messages.add({'text': _controller.text, 'isUser': true});
-        
-        // Simula uma resposta da IA
-        _messages.add({'text': 'Aqui será a resposta da IA...', 'isUser': false});
-      });
-      
-      // Limpa o campo de entrada após o envio
-      _controller.clear();
-    }
+  void _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() {
+      _messages.add({"text": text, "isUser": true});
+    });
+
+    _controller.clear();
+    await Future.delayed(const Duration(milliseconds: 100));
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+
+    // TODO: Integre com API real (ex: OpenAI)
+    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _messages.add({"text": "(Resposta gerada pela IA para: '$text')", "isUser": false});
+    });
+
+    await Future.delayed(const Duration(milliseconds: 100));
+    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
+
+  Widget _buildMessage(Map<String, dynamic> message) {
+    final isUser = message['isUser'] == true;
+    final alignment = isUser ? Alignment.centerRight : Alignment.centerLeft;
+    final bgColor = isUser ? AppColors.secondary : Colors.grey[200];
+    final textColor = isUser ? Colors.white : Colors.black87;
+
+    return Align(
+      alignment: alignment,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(14),
+        constraints: const BoxConstraints(maxWidth: 500),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          message['text'],
+          style: TextStyle(fontSize: 16, color: textColor, height: 1.4),
+        ),
+      ),
+    );
   }
 
   @override
@@ -34,78 +65,70 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background,
+        title: const Text("Chat IA", style: TextStyle(color: AppColors.secondary)),
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.settings, color: AppColors.secondary), // Ícone de configurações à esquerda
+          icon: const Icon(Icons.settings, color: AppColors.secondary),
           onPressed: () {
-            // Implementar ação para abrir configurações
+            // TODO: Navegar para Configurações
           },
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(10),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return Align(
-                  alignment: message['isUser'] ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 5),
-                    padding: const EdgeInsets.all(12),
-                    decoration: message['isUser']
-                        ? BoxDecoration(
-                            color: AppColors.secondary, // Mensagem do usuário dentro de um balão colorido
-                            borderRadius: BorderRadius.circular(15),
-                          )
-                        : null, // Mensagem da IA sem balão, apenas texto solto
-                    child: Text(
-                      message['text'],
-                      style: TextStyle(
-                        color: message['isUser'] ? Colors.white : Colors.black87, // Cor do texto
-                        fontSize: 16,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) => _buildMessage(_messages[index]),
+              ),
+            ),
+            Container(
+              color: AppColors.background,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 150),
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: null,
+                        minLines: 1,
+                        maxLengthEnforcement: MaxLengthEnforcement.none,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          hintText: 'Digite sua mensagem...',
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (text) => setState(() {}),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    onSubmitted: (value) => _sendMessage(), // Permite envio com Enter
-                    decoration: InputDecoration(
-                      hintText: 'Digite sua mensagem...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15), // Bordas arredondadas
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[200], // Cor de fundo do campo de entrada
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Reduzindo o espaçamento interno
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: FloatingActionButton(
+                      elevation: 0,
+                      backgroundColor: AppColors.secondary,
+                      onPressed: _sendMessage,
+                      child: const Icon(Icons.send, size: 20),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10), // Espaço entre o campo de texto e o botão de envio
-                SizedBox(
-                  width: 50, // Defina a largura desejada
-                  height: 50, // Defina a altura desejada
-                  child: FloatingActionButton(
-                    backgroundColor: AppColors.secondary, // Cor do botão de envio
-                    onPressed: _sendMessage,
-                    child: const Icon(Icons.send, color: Colors.white, size: 20), // Ícone menor
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
