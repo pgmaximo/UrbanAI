@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:urbanai/main.dart';
+import 'package:urbanai/pages/configPage.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -70,7 +71,10 @@ class _HomePageState extends State<HomePage> {
         leading: IconButton(
           icon: const Icon(Icons.settings, color: AppColors.secondary),
           onPressed: () {
-            // TODO: Navegar para Configurações
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ConfigPage()),
+            );
           },
         ),
       ),
