@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:urbanai/pages/WelcomePage.dart';
+import 'package:urbanai/scripts/ScriptTestPage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized;
+  await dotenv.load(fileName: 'lib/Scripts/.env');
   runApp(MyApp());
 }
 
@@ -20,6 +24,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: WelcomePage(),
+      // home: ScriptTestPage(),
+      //teste da parte de scrape, troca a linha de home comentada pro app normal
     );
   }
 }
@@ -34,5 +40,3 @@ class AppColors {
   /// Cor secundária – Verde escuro elegante (botões principais).
   static const Color secondary = Color(0xFF223E2D);
 }
-
-
