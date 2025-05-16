@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:urbanai/main.dart';
 import 'package:urbanai/pages/configPage.dart';
+import 'package:urbanai/services/user_services.dart';
+import 'package:urbanai/services/app_services.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,6 +17,23 @@ class _HomePageState extends State<HomePage> {
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
 
+  @override
+  void initState() {
+    super.initState();
+    _carregarHistorico();
+  }
+
+  void _carregarHistorico() {
+    final historico = AppServices().getHistoricoConversa();
+    setState(() {
+      _messages.clear();
+      for (final item in historico) {
+        _messages.add({"text": item['pergunta']!, "isUser": true});
+        _messages.add({"text": item['resposta']!, "isUser": false});
+      }
+    });
+  }
+
   void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -27,10 +46,10 @@ class _HomePageState extends State<HomePage> {
     await Future.delayed(const Duration(milliseconds: 100));
     _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
 
-    // TODO: Integre com API real (ex: OpenAI)
-    await Future.delayed(const Duration(seconds: 1));
+    final resposta = await UserServices().enviarMensagemIA(text);
+
     setState(() {
-      _messages.add({"text": "(Resposta gerada pela IA para: '$text')", "isUser": false});
+      _messages.add({"text": resposta, "isUser": false});
     });
 
     await Future.delayed(const Duration(milliseconds: 100));
@@ -53,7 +72,7 @@ class _HomePageState extends State<HomePage> {
           color: bgColor,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(
+        child: SelectableText(
           message['text'],
           style: TextStyle(fontSize: 16, color: textColor, height: 1.4),
         ),
