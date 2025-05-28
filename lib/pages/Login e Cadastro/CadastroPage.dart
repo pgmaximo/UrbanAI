@@ -17,7 +17,8 @@ class _CadastroPageState extends State<CadastroPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _telefoneController = TextEditingController();
   final TextEditingController _senhaController = TextEditingController();
-  final TextEditingController _confirmarSenhaController = TextEditingController();
+  final TextEditingController _confirmarSenhaController =
+      TextEditingController();
 
   bool _loading = false;
 
@@ -52,7 +53,11 @@ class _CadastroPageState extends State<CadastroPage> {
                       ),
                     ),
                     autofillHints: const [AutofillHints.name],
-                    validator: (value) => value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Campo obrigatório'
+                                : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -67,7 +72,11 @@ class _CadastroPageState extends State<CadastroPage> {
                     ),
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    validator: (value) => value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Campo obrigatório'
+                                : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -82,7 +91,11 @@ class _CadastroPageState extends State<CadastroPage> {
                     ),
                     keyboardType: TextInputType.phone,
                     autofillHints: const [AutofillHints.telephoneNumber],
-                    validator: (value) => value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Campo obrigatório'
+                                : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -97,7 +110,11 @@ class _CadastroPageState extends State<CadastroPage> {
                     ),
                     obscureText: true,
                     autofillHints: const [AutofillHints.newPassword],
-                    validator: (value) => value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Campo obrigatório'
+                                : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -112,84 +129,100 @@ class _CadastroPageState extends State<CadastroPage> {
                     ),
                     obscureText: true,
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Campo obrigatório';
-                      if (value != _senhaController.text) return 'As senhas não coincidem';
+                      if (value == null || value.isEmpty)
+                        return 'Campo obrigatório';
+                      if (value != _senhaController.text)
+                        return 'As senhas não coincidem';
                       return null;
                     },
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () async {
-                            if (_formKey.currentState!.validate()) {
-                              if (!mounted) return; // Garante que State ainda existe
-                              setState(() => _loading = true);
-                              try {
-                                // 1. Cria o usuário no Auth
-                                UserCredential userCredential = await FirebaseAuth.instance
-                                    .createUserWithEmailAndPassword(
-                                  email: _emailController.text.trim(),
-                                  password: _senhaController.text.trim(),
-                                );
-                                if (!mounted) return; // Checa após await
+                    onPressed:
+                        _loading
+                            ? null
+                            : () async {
+                              if (_formKey.currentState!.validate()) {
+                                if (!mounted)
+                                  return; // Garante que State ainda existe
+                                setState(() => _loading = true);
+                                try {
+                                  // 1. Cria o usuário no Auth
+                                  UserCredential userCredential =
+                                      await FirebaseAuth.instance
+                                          .createUserWithEmailAndPassword(
+                                            email: _emailController.text.trim(),
+                                            password:
+                                                _senhaController.text.trim(),
+                                          );
+                                  if (!mounted) return; // Checa após await
 
-                                // 2. Salva dados adicionais no Firestore (NÃO salva senha)
-                                await FirestoreService().cadastrarUsuario(
-                                  uid: userCredential.user!.uid,
-                                  nome: _nomeController.text.trim(),
-                                  email: _emailController.text.trim(),
-                                  telefone: _telefoneController.text.trim(),
-                                );
-                                if (!mounted) return; // Checa após await
+                                  // 2. Salva dados adicionais no Firestore (NÃO salva senha)
+                                  await FirestoreService().cadastrarUsuario(
+                                    uid: userCredential.user!.uid,
+                                    nome: _nomeController.text.trim(),
+                                    email: _emailController.text.trim(),
+                                    telefone: _telefoneController.text.trim(),
+                                  );
+                                  if (!mounted) return; // Checa após await
 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Cadastro realizado com sucesso!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                                _nomeController.clear();
-                                _emailController.clear();
-                                _telefoneController.clear();
-                                _senhaController.clear();
-                                _confirmarSenhaController.clear();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Cadastro realizado com sucesso!',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  _nomeController.clear();
+                                  _emailController.clear();
+                                  _telefoneController.clear();
+                                  _senhaController.clear();
+                                  _confirmarSenhaController.clear();
 
-                                await Future.delayed(const Duration(milliseconds: 400));
-                                if (!mounted) return;
+                                  await Future.delayed(
+                                    const Duration(milliseconds: 400),
+                                  );
+                                  if (!mounted) return;
 
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (context) => HomePage()),
-                                  (Route<dynamic> route) => false,
-                                );
-                              } on FirebaseAuthException catch (e) {
-                                if (!mounted) return;
-                                String msg;
-                                if (e.code == 'email-already-in-use') {
-                                  msg = 'Esse e-mail já está cadastrado.';
-                                } else if (e.code == 'weak-password') {
-                                  msg = 'A senha precisa ter pelo menos 6 caracteres.';
-                                } else if (e.code == 'invalid-email') {
-                                  msg = 'E-mail inválido.';
-                                } else {
-                                  msg = 'Erro: ${e.message}';
+                                  Navigator.of(context).pushAndRemoveUntil(
+                                    MaterialPageRoute(
+                                      builder: (context) => HomePage(),
+                                    ),
+                                    (Route<dynamic> route) => false,
+                                  );
+                                } on FirebaseAuthException catch (e) {
+                                  if (!mounted) return;
+                                  String msg;
+                                  if (e.code == 'email-already-in-use') {
+                                    msg = 'Esse e-mail já está cadastrado.';
+                                  } else if (e.code == 'password-does-not-meet-requirements') {
+                                    msg =
+                                        'A senha precisa ter pelo menos 8 caracteres.';
+                                  } else if (e.code == 'invalid-email') {
+                                    msg = 'E-mail inválido.';
+                                  } else {
+                                    msg = 'Erro: ${e.message}';
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(msg),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Erro ao cadastrar: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
                                 }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(msg), backgroundColor: Colors.red),
-                                );
-                              } catch (e) {
                                 if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Erro ao cadastrar: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                setState(() => _loading = false);
                               }
-                              if (!mounted) return;
-                              setState(() => _loading = false);
-                            }
-                          },
+                            },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
@@ -197,19 +230,25 @@ class _CadastroPageState extends State<CadastroPage> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 2,
+                    child:
+                        _loading
+                            ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : const Text(
+                              'Cadastrar',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
                             ),
-                          )
-                        : const Text(
-                            'Cadastrar',
-                            style: TextStyle(fontSize: 16, color: Colors.white),
-                          ),
                   ),
                 ],
               ),

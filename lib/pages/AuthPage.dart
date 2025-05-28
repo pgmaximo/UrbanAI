@@ -5,6 +5,7 @@ import 'package:urbanai/pages/Login%20e%20Cadastro/CadastroPage.dart';
 import 'package:urbanai/pages/Login%20e%20Cadastro/LoginPage.dart';
 import 'package:urbanai/widget/LoginButton.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AuthPage extends StatelessWidget {
   const AuthPage({super.key});
@@ -60,7 +61,7 @@ class AuthPage extends StatelessWidget {
                 const SizedBox(height: 32),
                 // Botão Google
                 LoginButton(
-                  icon: Icons.g_mobiledata,
+                  icon: FaIcon(FontAwesomeIcons.google, color: Colors.red,size: 22,),
                   text: 'Continue com Google',
                   color: Colors.white,
                   textColor: Colors.black87,
@@ -89,7 +90,7 @@ class AuthPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 LoginButton(
-                  icon: Icons.mail_outline,
+                  icon: FaIcon(FontAwesomeIcons.envelope,color: Colors.grey,size: 22,),
                   text: 'Login com Email ou Telefone',
                   color: Colors.white,
                   textColor: AppColors.secondary,
