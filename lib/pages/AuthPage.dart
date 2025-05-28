@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:urbanai/main.dart';
 import 'package:urbanai/pages/HomePage.dart';
-import 'package:urbanai/pages/Login%20e%20Cadatro/CadastroPage.dart';
-import 'package:urbanai/pages/Login%20e%20Cadatro/LoginPage.dart';
+import 'package:urbanai/pages/Login%20e%20Cadastro/CadastroPage.dart';
+import 'package:urbanai/pages/Login%20e%20Cadastro/LoginPage.dart';
 import 'package:urbanai/widget/LoginButton.dart';
 
 class AuthPage extends StatelessWidget {

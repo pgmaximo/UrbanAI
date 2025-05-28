@@ -1,8 +1,7 @@
-/* A fazer: Desenvolver sistema para cadastro (Backend) */
-
-
 import 'package:flutter/material.dart';
 import 'package:urbanai/main.dart';
+import 'package:urbanai/pages/HomePage.dart';
+import 'package:urbanai/services/firestore_services.dart'; // Import da HomePage
 
 class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
@@ -18,6 +17,8 @@ class _CadastroPageState extends State<CadastroPage> {
   final TextEditingController _telefoneController = TextEditingController();
   final TextEditingController _senhaController = TextEditingController();
   final TextEditingController _confirmarSenhaController = TextEditingController();
+
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -117,11 +118,52 @@ class _CadastroPageState extends State<CadastroPage> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // TODO: Criar conta com Firebase
-                      }
-                    },
+                    onPressed: _loading
+                        ? null
+                        : () async {
+                            if (_formKey.currentState!.validate()) {
+                              setState(() => _loading = true);
+                              try {
+                                await FirestoreService().cadastrarUsuario(
+                                  nome: _nomeController.text.trim(),
+                                  email: _emailController.text.trim(),
+                                  telefone: _telefoneController.text.trim(),
+                                  senha: _senhaController.text.trim(),
+                                );
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Cadastro realizado com sucesso!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                // Limpar campos
+                                _nomeController.clear();
+                                _emailController.clear();
+                                _telefoneController.clear();
+                                _senhaController.clear();
+                                _confirmarSenhaController.clear();
+
+                                // Navegar para a HomePage e remover a tela de cadastro da pilha
+                                await Future.delayed(const Duration(milliseconds: 400)); // Pequeno delay para mostrar snackbar
+                                if (!mounted) return;
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (context) => HomePage()),
+                                  (Route<dynamic> route) => false,
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Erro ao cadastrar: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                              if (!mounted) return;
+                              setState(() => _loading = false);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
@@ -129,10 +171,19 @@ class _CadastroPageState extends State<CadastroPage> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text(
-                      'Cadastrar',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Cadastrar',
+                            style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
                   ),
                 ],
               ),
