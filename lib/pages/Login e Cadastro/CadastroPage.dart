@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:urbanai/main.dart';
 import 'package:urbanai/pages/HomePage.dart';
-import 'package:urbanai/services/firestore_services.dart'; // Import da HomePage
+import 'package:urbanai/services/firestore_services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
@@ -122,34 +123,59 @@ class _CadastroPageState extends State<CadastroPage> {
                         ? null
                         : () async {
                             if (_formKey.currentState!.validate()) {
+                              if (!mounted) return; // Garante que State ainda existe
                               setState(() => _loading = true);
                               try {
+                                // 1. Cria o usuário no Auth
+                                UserCredential userCredential = await FirebaseAuth.instance
+                                    .createUserWithEmailAndPassword(
+                                  email: _emailController.text.trim(),
+                                  password: _senhaController.text.trim(),
+                                );
+                                if (!mounted) return; // Checa após await
+
+                                // 2. Salva dados adicionais no Firestore (NÃO salva senha)
                                 await FirestoreService().cadastrarUsuario(
+                                  uid: userCredential.user!.uid,
                                   nome: _nomeController.text.trim(),
                                   email: _emailController.text.trim(),
                                   telefone: _telefoneController.text.trim(),
-                                  senha: _senhaController.text.trim(),
                                 );
-                                if (!mounted) return;
+                                if (!mounted) return; // Checa após await
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Cadastro realizado com sucesso!'),
                                     backgroundColor: Colors.green,
                                   ),
                                 );
-                                // Limpar campos
                                 _nomeController.clear();
                                 _emailController.clear();
                                 _telefoneController.clear();
                                 _senhaController.clear();
                                 _confirmarSenhaController.clear();
 
-                                // Navegar para a HomePage e remover a tela de cadastro da pilha
-                                await Future.delayed(const Duration(milliseconds: 400)); // Pequeno delay para mostrar snackbar
+                                await Future.delayed(const Duration(milliseconds: 400));
                                 if (!mounted) return;
+
                                 Navigator.of(context).pushAndRemoveUntil(
                                   MaterialPageRoute(builder: (context) => HomePage()),
                                   (Route<dynamic> route) => false,
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                if (!mounted) return;
+                                String msg;
+                                if (e.code == 'email-already-in-use') {
+                                  msg = 'Esse e-mail já está cadastrado.';
+                                } else if (e.code == 'weak-password') {
+                                  msg = 'A senha precisa ter pelo menos 6 caracteres.';
+                                } else if (e.code == 'invalid-email') {
+                                  msg = 'E-mail inválido.';
+                                } else {
+                                  msg = 'Erro: ${e.message}';
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(msg), backgroundColor: Colors.red),
                                 );
                               } catch (e) {
                                 if (!mounted) return;
