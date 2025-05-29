@@ -85,7 +85,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        title: const Text("Chat IA", style: TextStyle(color: AppColors.secondary)),
+        title: Image.asset('asset/logos/logo_nome.png', height: 120), // altura em pixels
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.settings, color: AppColors.secondary),

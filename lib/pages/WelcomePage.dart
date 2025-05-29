@@ -21,7 +21,7 @@ class WelcomePage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const FlutterLogo(size: 120), // Pode substituir por Image.network
+                    Image.asset('asset/logos/logo_solo.png'),
                     const SizedBox(height: 32),
                     const Text(
                       'Boas vindas ao Urban.AI',
