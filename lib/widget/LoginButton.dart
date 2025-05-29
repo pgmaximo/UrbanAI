@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class LoginButton extends StatelessWidget {
-  final IconData icon;
+  final Widget icon; // Mude de IconData para Widget
   final String text;
   final Color color;
   final Color textColor;
@@ -25,7 +25,7 @@ class LoginButton extends StatelessWidget {
       height: 52,
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, color: textColor),
+        icon: icon, // Usa direto o Widget passado
         label: Text(
           text,
           style: TextStyle(fontSize: 16, color: textColor),

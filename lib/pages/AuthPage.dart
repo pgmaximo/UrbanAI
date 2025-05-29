@@ -1,14 +1,31 @@
-/* A fazer: Desenvolver sistema para login com o Google (Backend) */
-
 import 'package:flutter/material.dart';
 import 'package:urbanai/main.dart';
 import 'package:urbanai/pages/HomePage.dart';
-import 'package:urbanai/pages/Login%20e%20Cadatro/CadastroPage.dart';
-import 'package:urbanai/pages/Login%20e%20Cadatro/LoginPage.dart';
+import 'package:urbanai/pages/Login%20e%20Cadastro/CadastroPage.dart';
+import 'package:urbanai/pages/Login%20e%20Cadastro/LoginPage.dart';
 import 'package:urbanai/widget/LoginButton.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AuthPage extends StatelessWidget {
   const AuthPage({super.key});
+
+  // Função utilitária para login/cadastro com Google (Web)
+  Future<UserCredential?> signInWithGoogle(BuildContext context) async {
+    try {
+      final googleProvider = GoogleAuthProvider();
+      final userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      return userCredential;
+    } catch (e) {
+      print('Erro no login/cadastro com Google: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Não foi possível fazer login com Google.")),
+        );
+      }
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,16 +59,22 @@ class AuthPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
+                // Botão Google
                 LoginButton(
-                  icon: Icons.g_mobiledata,
+                  icon: FaIcon(FontAwesomeIcons.google, color: Colors.red,size: 22,),
                   text: 'Continue com Google',
                   color: Colors.white,
                   textColor: Colors.black87,
-                  onPressed:  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => HomePage()),
-                    );
+                  onPressed: () async {
+                    final userCredential = await signInWithGoogle(context);
+                    if (userCredential != null) {
+                      if (!context.mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => HomePage()),
+                        (route) => false,
+                      );
+                    }
                   },
                 ),
                 const SizedBox(height: 20),
@@ -67,7 +90,7 @@ class AuthPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 LoginButton(
-                  icon: Icons.mail_outline,
+                  icon: FaIcon(FontAwesomeIcons.envelope,color: Colors.grey,size: 22,),
                   text: 'Login com Email ou Telefone',
                   color: Colors.white,
                   textColor: AppColors.secondary,

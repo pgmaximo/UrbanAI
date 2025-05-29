@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:urbanai/pages/WelcomePage.dart';
 import 'package:urbanai/scripts/ScriptTestPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; 
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized;
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await dotenv.load(fileName: 'lib/Scripts/.env');
   runApp(MyApp());
 }
@@ -24,8 +29,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: WelcomePage(),
+      // Para testar ScriptTestPage, basta trocar aqui:
       // home: ScriptTestPage(),
-      //teste da parte de scrape, troca a linha de home comentada pro app normal
     );
   }
 }
