@@ -21,10 +21,10 @@ class WelcomePage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('asset/logos/logo_solo.png'),
+                    Image.asset('asset/logos/logo_solo.png', height: 400,),
                     const SizedBox(height: 32),
                     const Text(
-                      'Boas vindas ao Urban.AI',
+                      'Boas vindas ao UrbanAI',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
