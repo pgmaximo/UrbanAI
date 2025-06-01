@@ -41,6 +41,8 @@ dependencies:
   firebase_core: ^3.13.1
   firebase_auth: ^5.5.4
   font_awesome_flutter: ^10.7.0
+  google_maps_flutter: ^2.12.2
+  geocoding: 2.1.1
   
 
 dev_dependencies:
