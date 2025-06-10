@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:urbanai/main.dart';
 import 'package:urbanai/pages/MapPage.dart';
 import 'package:urbanai/pages/configPage.dart';
+import 'package:urbanai/pages/favoritosPage.dart';
 import 'package:urbanai/services/scrape_service.dart';
 import 'package:urbanai/services/analise_regional_service.dart';
 import 'package:urbanai/services/user_services.dart';
@@ -9,6 +10,7 @@ import 'package:urbanai/services/app_services.dart';
 import 'package:urbanai/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:urbanai/services/user_data.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -77,7 +79,6 @@ class _HomePageState extends State<HomePage> {
       setState(() => _isLoadingUserDataDrawer = false);
     }
   }
-
 
   Future<void> _carregarHistoricoDaUI() async {
     if (!mounted) return;
@@ -348,48 +349,64 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty || _isLoading) return;
+  final text = _controller.text.trim();
+  if (text.isEmpty || _isLoading) return;
 
-    if (!mounted) return;
+  // Comando especial para teste: adiciona um card de imóvel manualmente
+  if (text == 'teste_card') {
     setState(() {
-      _isLoading = true;
-      _loadingMessage = "Assistente digitando...";
-      _messages.add({"text": text, "isUser": true, "isCard": false});
+      _messages.add({
+        'isUser': false,
+        'isCard': true,
+        'cardData': {'nome': 'Imóvel Teste do Chat'},
+      });
     });
-    await _appServices.salvarMensagem('user', text);
     _controller.clear();
     _scrollToBottom();
-
-    final Map<String, dynamic> respostaN8NInteracao1 =
-        await _userServices.enviarMensagemParaN8NInteracao1(text);
-
-    if (!mounted) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    if (respostaN8NInteracao1['action_tag'] ==
-            'ANALYZE_REGIONS_AND_SCRAPE_LISTINGS' &&
-        respostaN8NInteracao1['status'] == 'action_required_client' &&
-        respostaN8NInteracao1['payload_criteria'] is Map) {
-      _processarAcaoDoCliente(
-        respostaN8NInteracao1['payload_criteria'] as Map<String, dynamic>,
-      );
-    } else if (respostaN8NInteracao1['message'] != null) {
-      _exibirRespostaProcessada(respostaN8NInteracao1);
-      setState(() => _isLoading = false);
-    } else {
-      print(
-          "HomePage: Formato de resposta N8N Interação 1 inesperado: $respostaN8NInteracao1");
-      _exibirRespostaProcessada(
-        _userServices.formatoErroPadrao(
-          "Recebi uma resposta inesperada do assistente.",
-        ),
-      );
-      setState(() => _isLoading = false);
-    }
+    return;
   }
+
+  // --- código normal da função ---
+  if (!mounted) return;
+  setState(() {
+    _isLoading = true;
+    _loadingMessage = "Assistente digitando...";
+    _messages.add({"text": text, "isUser": true, "isCard": false});
+  });
+  await _appServices.salvarMensagem('user', text);
+  _controller.clear();
+  _scrollToBottom();
+
+  final Map<String, dynamic> respostaN8NInteracao1 =
+      await _userServices.enviarMensagemParaN8NInteracao1(text);
+
+  if (!mounted) {
+    setState(() => _isLoading = false);
+    return;
+  }
+
+  if (respostaN8NInteracao1['action_tag'] ==
+          'ANALYZE_REGIONS_AND_SCRAPE_LISTINGS' &&
+      respostaN8NInteracao1['status'] == 'action_required_client' &&
+      respostaN8NInteracao1['payload_criteria'] is Map) {
+    _processarAcaoDoCliente(
+      respostaN8NInteracao1['payload_criteria'] as Map<String, dynamic>,
+    );
+  } else if (respostaN8NInteracao1['message'] != null) {
+    _exibirRespostaProcessada(respostaN8NInteracao1);
+    setState(() => _isLoading = false);
+  } else {
+    print(
+        "HomePage: Formato de resposta N8N Interação 1 inesperado: $respostaN8NInteracao1");
+    _exibirRespostaProcessada(
+      _userServices.formatoErroPadrao(
+        "Recebi uma resposta inesperada do assistente.",
+      ),
+    );
+    setState(() => _isLoading = false);
+  }
+}
+
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -404,13 +421,19 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // -------------------- CARD DE IMÓVEL COM FAVORITAR --------------------
+  Widget _buildImovelCard(Map<String, dynamic> cardData) {
+    return _ImovelCard(cardData: cardData);
+  }
+
+  // -------------------- MENSAGEM CHAT --------------------
   Widget _buildMessage(Map<String, dynamic> message) {
     final isUser = message['isUser'] == true;
     final isCard = message['isCard'] == true;
 
     if (isCard) {
       final cardData = message['cardData'] as Map<String, dynamic>;
-      return Align(/* ... Seu widget Card ... */);
+      return _buildImovelCard(cardData);
     }
 
     final alignment = isUser ? Alignment.centerRight : Alignment.centerLeft;
@@ -511,10 +534,13 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: const Icon(Icons.favorite, color: AppColors.secondary),
               title: const Text('Favoritos'),
-              onTap: () {
-                Navigator.pop(context);
-                // Implemente a navegação para favoritos se necessário
-              },
+              onTap: () 
+              {Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FavoritosPage()),
+              );
+            },
             ),
           ],
         ),
@@ -662,6 +688,74 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ================== Card Widget ==================
+
+class _ImovelCard extends StatefulWidget {
+  final Map<String, dynamic> cardData;
+  const _ImovelCard({Key? key, required this.cardData}) : super(key: key);
+
+  @override
+  State<_ImovelCard> createState() => _ImovelCardState();
+}
+
+class _ImovelCardState extends State<_ImovelCard> {
+  bool _favoritado = false;
+
+  Future<void> _adicionarAosFavoritos() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .collection('Favoritos')
+          .add({'nome': widget.cardData['nome']});
+
+      setState(() {
+        _favoritado = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Imóvel adicionado aos favoritos!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao favoritar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        title: Text(
+          widget.cardData['nome'] ?? 'Imóvel sem nome',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        trailing: IconButton(
+          icon: Icon(
+            _favoritado ? Icons.favorite : Icons.favorite_border,
+            color: _favoritado ? Colors.red : Colors.grey,
+          ),
+          onPressed: _favoritado ? null : _adicionarAosFavoritos,
+          tooltip: 'Favoritar',
         ),
       ),
     );
