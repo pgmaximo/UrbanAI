@@ -88,7 +88,21 @@ class _FavoritosPageState extends State<FavoritosPage> {
               itemCount: favoritos.length,
               itemBuilder: (context, index) {
                 final doc = favoritos[index];
-                final nome = doc['nome'] ?? 'Imóvel sem nome';
+
+                // --- INÍCIO DA CORREÇÃO ---
+                // 1. Pega o mapa de dados do documento de forma segura.
+                final data = doc.data() as Map<String, dynamic>?;
+
+                // 2. Verifica se os dados existem antes de tentar usá-los.
+                if (data == null) {
+                  // Retorna um widget vazio ou de erro se o documento não tiver dados.
+                  return const SizedBox.shrink(); 
+                }
+                
+                // 3. Acessa os campos a partir do mapa, fornecendo valores padrão se faltarem.
+                final nome = data['nome'] as String? ?? 'Imóvel sem nome';
+                final link = data['link'] as String? ?? 'Link não disponível';
+                // --- FIM DA CORREÇÃO ---
 
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
@@ -103,33 +117,42 @@ class _FavoritosPageState extends State<FavoritosPage> {
                       horizontal: 16,
                     ),
                     title: Text(
-                      nome,
+                      nome, // Usa a variável segura
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                         color: AppColors.primary,
                       ),
                     ),
+                    // Adicionando o subtítulo para mostrar o link, se existir
+                    subtitle: Text(
+                      link, // Usa a variável segura
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     trailing: IconButton(
                       icon: const Icon(Icons.favorite, color: Colors.red),
                       tooltip: 'Remover dos favoritos',
                       onPressed: () async {
                         await doc.reference.delete();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Imóvel removido dos favoritos!'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Imóvel removido dos favoritos!'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
                       },
                     ),
                   ),
                 );
-              },
+              }
             );
-          },
-        ),
-      ),
+          }
+        )
+      )
     );
   }
 }
+      

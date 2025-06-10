@@ -1,97 +1,134 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:urbanai/scripts/secret.dart'; // Importa a URL do N8N
-import 'package:urbanai/services/app_services.dart'; // Para acessar o histórico
-import 'package:flutter/foundation.dart'; // Para kDebugMode
+import 'package:flutter/foundation.dart';
 
-/// Serviço simplificado para interagir com o backend único do N8N.
+// Importações cruciais para a integração
+import 'package:urbanai/scripts/ScrapeScript.dart'; // Importa a classe ScrapeService
+import 'package:urbanai/scripts/secret.dart';      // Importa as chaves de API
+import 'package:urbanai/services/app_services.dart';
+
 class UserServices {
   final AppServices _appServices = AppServices();
-  // AGORA SÓ EXISTE UMA URL DE WEBHOOK
-  final Uri _urlN8N = Uri.parse(apiKeyN8N); // Usando a primeira chave ou uma nova URL única
 
-  /// Envia a mensagem do usuário e o histórico para o webhook do N8N.
-  /// Lida com os dois tipos de resposta: pergunta de follow-up ou resultado final com card.
+  // --- PONTO CHAVE DA INTEGRAÇÃO ---
+  // Cria uma instância real do ScrapeService, passando a chave da API da SerpAPI.
+  final ScrapeService _scrapeService = ScrapeService(apiKey: apiKeySerpApi);
+
+  // URLs para a comunicação em duas fases com o N8N
+  final Uri _urlN8N_InteracaoInicial = Uri.parse(apiKeyN8N_InteracaoInicial);
+  final Uri _urlN8N_ReceberDadosScraping = Uri.parse(apiKeyN8N_ReceberDadosScraping);
+
+  /// Envia a mensagem inicial para o N8N e orquestra as ações.
   Future<Map<String, dynamic>> enviarMensagem(String mensagemUsuario) async {
-    final List<Map<String, String>> historicoConversa = _appServices.getHistoricoConversaCache();
+    if (kDebugMode) print("[UserSvc] Iniciando Interação 1 com N8N.");
     
-    if (kDebugMode) {
-      print("[UserSvc] Enviando para N8N: '$mensagemUsuario'");
-      print("[UserSvc] URL: $_urlN8N");
-    }
-
     try {
-      final response = await http.post(
-        _urlN8N,
+      // --- CHAMADA PARA O WEBHOOK 1 (INICIAL) ---
+      final responseInicial = await http.post(
+        _urlN8N_InteracaoInicial,
         headers: const {'Content-Type': 'application/json; charset=utf-8'},
-        body: jsonEncode({'mensagem': mensagemUsuario, 'historico': historicoConversa}),
-      ).timeout(const Duration(seconds: 90)); // Timeout maior para permitir o scraping
+        body: jsonEncode({
+          'mensagem': mensagemUsuario,
+          'historico': _appServices.getHistoricoConversaCache(),
+        }),
+      ).timeout(const Duration(seconds: 45));
 
-      if (kDebugMode) {
-        print('[UserSvc] N8N Raw Response Status: ${response.statusCode}');
-        print('[UserSvc] N8N Raw Response Body: ${response.body}');
+      if (responseInicial.statusCode != 200 || responseInicial.body.isEmpty) {
+        return formatoErroPadrao("Falha na comunicação inicial com o assistente (${responseInicial.statusCode}).");
       }
 
-      if (response.statusCode == 200 && response.body.isNotEmpty) {
-        final Map<String, dynamic> n8nResponse = jsonDecode(utf8.decode(response.bodyBytes));
-        
-        // A resposta do N8N sempre terá um campo 'message'.
-        final String messageFromAI = n8nResponse['message'] as String? ?? "O assistente não enviou uma mensagem.";
+      final n8nResponse = jsonDecode(utf8.decode(responseInicial.bodyBytes));
+      
+      // VERIFICA SE O N8N PEDIU UMA TAREFA DE SCRAPING
+      if (n8nResponse['action_tag'] == 'EXECUTE_SCRAPING_TASK' && n8nResponse['serp_api_query'] is String) {
+        if (kDebugMode) print("[UserSvc] N8N solicitou tarefa de scraping.");
+        final String query = n8nResponse['serp_api_query'];
 
-        // Processa a mensagem para extrair texto e cards, se existirem.
-        final List<Map<String, dynamic>> extractedImoveis = extractImovelCards(messageFromAI);
-        final String mainTextContent = removeCardJsonFromString(messageFromAI);
+        // --- A INTEGRAÇÃO ACONTECE AQUI ---
+        // Chama o método do ScrapeService para executar a tarefa completa.
+        final List<Map<String, String>> dadosColetados = 
+            await _scrapeService.executarBuscaEExtrairConteudos(
+                querySerpApi: query, 
+                totalAnuncios: 3
+            );
 
-        // Retorna um mapa padronizado para a HomePage.
-        return {
-          'tipo_resposta': extractedImoveis.isNotEmpty ? 'lista_imoveis' : 'texto_simples',
-          'conteudo_texto': mainTextContent,
-          'conteudo_original': messageFromAI, // Preserva a mensagem original para salvar no histórico
-          'imoveis': extractedImoveis,
-        };
+        if (dadosColetados.isEmpty) {
+          return formatoErroPadrao("Não consegui encontrar imóveis com os critérios fornecidos.");
+        }
 
-      } else { 
-        print('[UserSvc] Erro na comunicação com N8N. Status: ${response.statusCode}');
-        return formatoErroPadrao("Falha na comunicação com o assistente (${response.statusCode}).");
+        // --- CHAMADA PARA O WEBHOOK 2 (ENVIAR DADOS COLETADOS) ---
+        if (kDebugMode) print("[UserSvc] Enviando dados coletados para o Webhook 2 do N8N.");
+        return await _enviarDadosScrapingParaN8N(dadosColetados);
+
+      } else {
+        // Se não for uma tarefa, é uma resposta final (texto ou card)
+        if (kDebugMode) print("[UserSvc] N8N retornou uma resposta direta.");
+        return _processarRespostaFinal(n8nResponse);
       }
-    } catch (e, stackTrace) { 
-      print('[UserSvc] Exceção na requisição HTTP para N8N: $e\n$stackTrace');
-      return formatoErroPadrao("Erro de conexão ao contatar o assistente. Verifique sua internet.");
+
+    } catch (e, stackTrace) {
+      print('[UserSvc] Exceção geral: $e\n$stackTrace');
+      return formatoErroPadrao("Erro de conexão. Verifique sua internet.");
     }
   }
 
-  /// Cria um mapa de erro padronizado para ser exibido na UI.
-  Map<String, dynamic> formatoErroPadrao(String mensagemErro) { 
-    return {
-      'tipo_resposta': 'erro', 
-      'conteudo_texto': mensagemErro,
-      'conteudo_original': mensagemErro,
-      'imoveis': [],
-    };
+  /// Envia os dados coletados para o segundo webhook do N8N e retorna a resposta final.
+  Future<Map<String, dynamic>> _enviarDadosScrapingParaN8N(List<Map<String, String>> dados) async {
+    try {
+      final responseFinal = await http.post(
+        _urlN8N_ReceberDadosScraping,
+        headers: const {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({'dados_coletados': dados, 'historico': _appServices.getHistoricoConversaCache()}),
+      ).timeout(const Duration(seconds: 90));
+
+      if (responseFinal.statusCode != 200 || responseFinal.body.isEmpty) {
+        return formatoErroPadrao("O assistente falhou ao analisar os imóveis encontrados (${responseFinal.statusCode}).");
+      }
+
+      final n8nResponseFinal = jsonDecode(utf8.decode(responseFinal.bodyBytes));
+      return _processarRespostaFinal(n8nResponseFinal);
+
+    } catch (e) {
+      return formatoErroPadrao("Erro ao enviar dados para análise final.");
+    }
   }
 
-  /// Extrai os JSONs de cards de imóveis de uma string, usando os marcadores ##CARD_JSON_...##.
+  /// Processa uma resposta do N8N que contém a mensagem final para o usuário.
+  Map<String, dynamic> _processarRespostaFinal(Map<String, dynamic> n8nResponse) {
+      final String messageFromAI = n8nResponse['message'] as String? ?? "Ocorreu um erro inesperado.";
+      final List<Map<String, dynamic>> extractedImoveis = extractImovelCards(messageFromAI);
+      final String mainTextContent = removeCardJsonFromString(messageFromAI);
+
+      return {
+        'tipo_resposta': extractedImoveis.isNotEmpty ? 'lista_imoveis' : 'texto_simples',
+        'conteudo_texto': mainTextContent,
+        'conteudo_original': messageFromAI,
+        'imoveis': extractedImoveis,
+      };
+  }
+
+  // Funções auxiliares (formatoErroPadrao, extractImovelCards, removeCardJsonFromString)
+  // O código delas permanece o mesmo.
+  Map<String, dynamic> formatoErroPadrao(String mensagemErro) => {'tipo_resposta': 'erro', 'conteudo_texto': mensagemErro, 'conteudo_original': mensagemErro, 'imoveis': []};
+  
   List<Map<String, dynamic>> extractImovelCards(String messageFromAI) { 
-    final List<Map<String, dynamic>> cards = [];
-    final RegExp cardRegExp = RegExp(r"##CARD_JSON_START##(.*?)##CARD_JSON_END##", dotAll: true);
-    
+    final cards = <Map<String, dynamic>>[];
+    final cardRegExp = RegExp(r"##CARD_JSON_START##(.*?)##CARD_JSON_END##", dotAll: true);
     cardRegExp.allMatches(messageFromAI).forEach((match) {
-      final String jsonString = match.group(1) ?? "";
+      final jsonString = match.group(1) ?? "";
       if (jsonString.isNotEmpty) {
         try {
           cards.add(jsonDecode(jsonString) as Map<String, dynamic>);
         } catch (e) {
-          print("[UserSvc] Erro ao decodificar JSON de card embutido: $e");
+          if (kDebugMode) print("[UserSvc] Erro ao decodificar JSON de card embutido: $e");
         }
       }
     });
     return cards;
   }
-
-  /// Remove os blocos de JSON de cards da string, deixando apenas o texto conversacional.
+  
   String removeCardJsonFromString(String messageFromAI) { 
-    final RegExp cardRegExp = RegExp(r"##CARD_JSON_START##(.*?)##CARD_JSON_END##\s*", dotAll: true);
-    String cleanedMessage = messageFromAI.replaceAll(cardRegExp, "\n[CARD DO IMÓVEL]\n");
-    return cleanedMessage.trim();
+    final cardRegExp = RegExp(r"##CARD_JSON_START##(.*?)##CARD_JSON_END##\s*", dotAll: true);
+    return messageFromAI.replaceAll(cardRegExp, "\n[CARD DO IMÓVEL]\n").trim();
   }
 }
