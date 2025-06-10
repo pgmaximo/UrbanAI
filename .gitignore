@@ -13,6 +13,7 @@
 migrate_working_dir/
 .env
 secret.dart
+web/index.html
 
 # IntelliJ related
 *.iml
