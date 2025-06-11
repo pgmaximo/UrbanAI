@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:urbanai/main.dart'; // Para AppColors
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:urbanai/main.dart';
 import 'package:urbanai/pages/HomePage.dart';
-import 'package:urbanai/services/app_services.dart'; // Importar AppServices
+import 'package:urbanai/services/app_services.dart';
 import 'package:urbanai/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:urbanai/theme/app_theme.dart'; // <-- IMPORTA NOSSO NOVO ARQUIVO DE ESTILO
 
 class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
@@ -21,8 +23,8 @@ class _CadastroPageState extends State<CadastroPage> {
   final TextEditingController _confirmarSenhaController = TextEditingController();
 
   bool _loading = false;
-  final FirestoreService _firestoreService = FirestoreService(); // Instância do serviço
-  final AppServices _appServices = AppServices(); // Instância do AppServices
+  final FirestoreService _firestoreService = FirestoreService();
+  final AppServices _appServices = AppServices();
 
   @override
   Widget build(BuildContext context) {
@@ -47,57 +49,58 @@ class _CadastroPageState extends State<CadastroPage> {
                   // --- TextFormField para Nome ---
                   TextFormField(
                     controller: _nomeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome completo',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(16)),
-                      ),
-                    ),
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Nome completo', icon: FontAwesomeIcons.user),
                     autofillHints: const [AutofillHints.name],
                     validator: (value) =>
-                        value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                        value == null || value.trim().isEmpty ? 'Campo obrigatório' : null,
                   ),
                   const SizedBox(height: 16),
 
                   // --- TextFormField para Email ---
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email', filled: true, /* ... */),
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Email', icon: FontAwesomeIcons.envelope),
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
                     validator: (value) =>
-                        value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                        value == null || value.trim().isEmpty ? 'Campo obrigatório' : null,
                   ),
                   const SizedBox(height: 16),
 
                   // --- TextFormField para Telefone ---
                   TextFormField(
                     controller: _telefoneController,
-                    decoration: const InputDecoration(labelText: 'Telefone', filled: true, /* ... */),
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Telefone', icon: FontAwesomeIcons.phone),
                     keyboardType: TextInputType.phone,
                     autofillHints: const [AutofillHints.telephoneNumber],
                     validator: (value) =>
-                        value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                        value == null || value.trim().isEmpty ? 'Campo obrigatório' : null,
                   ),
                   const SizedBox(height: 16),
 
                   // --- TextFormField para Senha ---
                   TextFormField(
                     controller: _senhaController,
-                    decoration: const InputDecoration(labelText: 'Senha', filled: true, /* ... */),
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Senha', icon: FontAwesomeIcons.lock),
                     obscureText: true,
                     autofillHints: const [AutofillHints.newPassword],
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                    validator: (value) {
+                       if (value == null || value.isEmpty) return 'Campo obrigatório';
+                       if (value.length < 6) return 'A senha deve ter no mínimo 6 caracteres';
+                       return null;
+                    }
                   ),
                   const SizedBox(height: 16),
 
                   // --- TextFormField para Confirmar Senha ---
                   TextFormField(
                     controller: _confirmarSenhaController,
-                    decoration: const InputDecoration(labelText: 'Confirmar senha', filled: true, /* ... */),
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Confirmar senha', icon: FontAwesomeIcons.lock),
                     obscureText: true,
                     validator: (value) {
                       if (value == null || value.isEmpty) return 'Campo obrigatório';
@@ -109,14 +112,14 @@ class _CadastroPageState extends State<CadastroPage> {
 
                   // --- Botão de Cadastrar ---
                   ElevatedButton(
-                    onPressed: _loading ? null : _performCadastro, // Chamada para o método de cadastro
+                    onPressed: _loading ? null : _performCadastro,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: _loading
-                        ? const SizedBox( /* Indicador de loading */)
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
                         : const Text('Cadastrar', style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ],
@@ -128,70 +131,39 @@ class _CadastroPageState extends State<CadastroPage> {
     );
   }
 
-  // Método para executar o processo de cadastro
   Future<void> _performCadastro() async {
-    // Valida o formulário
-    if (!_formKey.currentState!.validate()) {
-      return; // Se o formulário não for válido, não faz nada.
+    // ... seu código do _performCadastro (sem alterações) ...
+     if (!_formKey.currentState!.validate()) {
+      return; 
     }
-
-    // Garante que o widget ainda está montado antes de alterar o estado.
     if (!mounted) return;
     setState(() => _loading = true);
-
     try {
-      // 1. Cria o usuário no Firebase Authentication
       UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _senhaController.text.trim(),
       );
-
-      if (!mounted) return; // Checa novamente após o await
-
-      User? user = userCredential.user; // Obtém o objeto User do Firebase Auth
-
+      if (!mounted) return; 
+      User? user = userCredential.user; 
       if (user != null) {
-        // 2. Salva/Atualiza dados adicionais no Firestore usando o método do FirestoreService
         await _firestoreService.cadastrarOuAtualizarUsuario(
-          uid: user.uid, // UID vindo do Firebase Auth
-          email: user.email!, // Email vindo do Firebase Auth (mais confiável)
+          uid: user.uid,
+          email: user.email!, 
           nome: _nomeController.text.trim(),
           telefone: _telefoneController.text.trim().isNotEmpty ? _telefoneController.text.trim() : null,
         );
-
         if (!mounted) return;
-
-        // 3. IMPORTANTE: Define o ID da conversa no AppServices com o UID do usuário.
-        // Isso garante que o histórico de chat seja associado a este usuário.
         _appServices.setConversationId(user.uid);
-
-        // Feedback de sucesso para o usuário
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cadastro realizado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Cadastro realizado com sucesso!'), backgroundColor: Colors.green),
         );
-
-        // Limpa os campos do formulário
-        _nomeController.clear();
-        _emailController.clear();
-        _telefoneController.clear();
-        _senhaController.clear();
-        _confirmarSenhaController.clear();
-
-        // Aguarda um instante antes de navegar para dar tempo ao usuário de ler o SnackBar
         await Future.delayed(const Duration(milliseconds: 500));
         if (!mounted) return;
-
-        // Navega para a HomePage e remove todas as rotas anteriores da pilha
-        // para que o usuário não possa voltar para a tela de cadastro/login.
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const HomePage()),
           (Route<dynamic> route) => false,
         );
       } else {
-        // Caso raro onde userCredential não é nulo, mas user é nulo.
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Erro ao obter dados do usuário após cadastro.'), backgroundColor: Colors.red),
@@ -199,11 +171,10 @@ class _CadastroPageState extends State<CadastroPage> {
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      // Tratamento específico para erros do Firebase Authentication
       String msg;
       if (e.code == 'email-already-in-use') {
         msg = 'Esse e-mail já está cadastrado.';
-      } else if (e.code == 'weak-password') { // Firebase agora usa 'weak-password'
+      } else if (e.code == 'weak-password') {
         msg = 'A senha precisa ter pelo menos 6 caracteres.';
       } else if (e.code == 'invalid-email') {
         msg = 'E-mail inválido.';
@@ -214,19 +185,15 @@ class _CadastroPageState extends State<CadastroPage> {
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     } catch (e) {
-      // Tratamento para outros erros (ex: erro ao salvar no Firestore, se relançado)
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro inesperado ao cadastrar: $e'), backgroundColor: Colors.red),
       );
     }
-
-    // Garante que o estado de loading seja desativado ao final, mesmo se houver erro.
     if (!mounted) return;
     setState(() => _loading = false);
   }
 
-  // Lembre-se de liberar os controllers no dispose
   @override
   void dispose() {
     _nomeController.dispose();

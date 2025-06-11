@@ -9,21 +9,15 @@ import 'package:urbanai/services/app_services.dart';
 
 class UserServices {
   final AppServices _appServices = AppServices();
-
-  // --- PONTO CHAVE DA INTEGRAÇÃO ---
-  // Cria uma instância real do ScrapeService, passando a chave da API da SerpAPI.
   final ScrapeService _scrapeService = ScrapeService(apiKey: apiKeySerpApi);
 
-  // URLs para a comunicação em duas fases com o N8N
   final Uri _urlN8N_InteracaoInicial = Uri.parse(apiKeyN8N_InteracaoInicial);
   final Uri _urlN8N_ReceberDadosScraping = Uri.parse(apiKeyN8N_ReceberDadosScraping);
 
-  /// Envia a mensagem inicial para o N8N e orquestra as ações.
   Future<Map<String, dynamic>> enviarMensagem(String mensagemUsuario) async {
     if (kDebugMode) print("[UserSvc] Iniciando Interação 1 com N8N.");
     
     try {
-      // --- CHAMADA PARA O WEBHOOK 1 (INICIAL) ---
       final responseInicial = await http.post(
         _urlN8N_InteracaoInicial,
         headers: const {'Content-Type': 'application/json; charset=utf-8'},
@@ -39,14 +33,11 @@ class UserServices {
 
       final n8nResponse = jsonDecode(utf8.decode(responseInicial.bodyBytes));
       
-      // VERIFICA SE O N8N PEDIU UMA TAREFA DE SCRAPING
       if (n8nResponse['action_tag'] == 'EXECUTE_SCRAPING_TASK' && n8nResponse['serp_api_query'] is String) {
         if (kDebugMode) print("[UserSvc] N8N solicitou tarefa de scraping.");
         final String query = n8nResponse['serp_api_query'];
 
-        // --- A INTEGRAÇÃO ACONTECE AQUI ---
-        // Chama o método do ScrapeService para executar a tarefa completa.
-        final List<Map<String, String>> dadosColetados = 
+        final List<Map<String, dynamic>> dadosColetados = 
             await _scrapeService.executarBuscaEExtrairConteudos(
                 querySerpApi: query, 
                 totalAnuncios: 3
@@ -56,12 +47,10 @@ class UserServices {
           return formatoErroPadrao("Não consegui encontrar imóveis com os critérios fornecidos.");
         }
 
-        // --- CHAMADA PARA O WEBHOOK 2 (ENVIAR DADOS COLETADOS) ---
         if (kDebugMode) print("[UserSvc] Enviando dados coletados para o Webhook 2 do N8N.");
         return await _enviarDadosScrapingParaN8N(dadosColetados);
 
       } else {
-        // Se não for uma tarefa, é uma resposta final (texto ou card)
         if (kDebugMode) print("[UserSvc] N8N retornou uma resposta direta.");
         return _processarRespostaFinal(n8nResponse);
       }
@@ -73,12 +62,17 @@ class UserServices {
   }
 
   /// Envia os dados coletados para o segundo webhook do N8N e retorna a resposta final.
-  Future<Map<String, dynamic>> _enviarDadosScrapingParaN8N(List<Map<String, String>> dados) async {
+  // ############ CORREÇÃO APLICADA AQUI ############
+  // O tipo do parâmetro 'dados' foi atualizado para aceitar o que o ScrapeService retorna.
+  Future<Map<String, dynamic>> _enviarDadosScrapingParaN8N(List<Map<String, dynamic>> dados) async {
     try {
       final responseFinal = await http.post(
         _urlN8N_ReceberDadosScraping,
         headers: const {'Content-Type': 'application/json; charset=utf-8'},
-        body: jsonEncode({'dados_coletados': dados, 'historico': _appServices.getHistoricoConversaCache()}),
+        body: jsonEncode({
+          'dados_coletados': dados, 
+          'historico': _appServices.getHistoricoConversaCache()
+        }),
       ).timeout(const Duration(seconds: 90));
 
       if (responseFinal.statusCode != 200 || responseFinal.body.isEmpty) {
@@ -107,8 +101,6 @@ class UserServices {
       };
   }
 
-  // Funções auxiliares (formatoErroPadrao, extractImovelCards, removeCardJsonFromString)
-  // O código delas permanece o mesmo.
   Map<String, dynamic> formatoErroPadrao(String mensagemErro) => {'tipo_resposta': 'erro', 'conteudo_texto': mensagemErro, 'conteudo_original': mensagemErro, 'imoveis': []};
   
   List<Map<String, dynamic>> extractImovelCards(String messageFromAI) { 
@@ -129,6 +121,6 @@ class UserServices {
   
   String removeCardJsonFromString(String messageFromAI) { 
     final cardRegExp = RegExp(r"##CARD_JSON_START##(.*?)##CARD_JSON_END##\s*", dotAll: true);
-    return messageFromAI.replaceAll(cardRegExp, "\n[CARD DO IMÓVEL]\n").trim();
+    return messageFromAI.replaceAll(cardRegExp, "").trim();
   }
 }

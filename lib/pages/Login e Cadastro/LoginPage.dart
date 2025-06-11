@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:urbanai/main.dart'; // Para AppColors
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:urbanai/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:urbanai/pages/HomePage.dart';
-import 'package:urbanai/services/app_services.dart'; // Importar AppServices
-import 'package:urbanai/services/firestore_service.dart'; // Opcional, para atualizar dados do usuário
+import 'package:urbanai/services/app_services.dart';
+import 'package:urbanai/services/firestore_service.dart';
+import 'package:urbanai/theme/app_theme.dart'; // <-- IMPORTA NOSSO NOVO ARQUIVO DE ESTILO
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,21 +16,12 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController(); // Renomeado para clareza
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _loading = false;
-  final AppServices _appServices = AppServices(); // Instância do AppServices
-  final FirestoreService _firestoreService = FirestoreService(); // Instância para atualizar dados do usuário
-
-  // // Método para exibir diálogo de redefinição de senha
-  // Future<void> _showResetPasswordDialog() async {
-  //   final dialogEmailController = TextEditingController();
-  //   // ... (código do diálogo de redefinição de senha - mantido como no seu original) ...
-  //   // Certifique-se que a lógica de envio de email e feedback está correta
-  //   await showDialog( /* ... seu código de diálogo ... */ );
-  // }
-
+  final AppServices _appServices = AppServices();
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
@@ -52,22 +45,24 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   // --- TextFormField para Email ---
                   TextFormField(
-                    controller: _emailController, // Usando _emailController
-                    decoration: const InputDecoration(labelText: 'Email', filled: true, /* ... */),
+                    controller: _emailController,
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Email', icon: FontAwesomeIcons.envelope),
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
                     validator: (value) =>
-                        value == null || value.isEmpty ? 'Campo obrigatório' : null,
+                        value == null || value.trim().isEmpty ? 'Campo obrigatório' : null,
                   ),
                   const SizedBox(height: 16),
 
                   // --- TextFormField para Senha ---
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: 'Senha', filled: true, /* ... */),
+                    // ESTILO ATUALIZADO
+                    decoration: getStyledInputDecoration('Senha', icon: FontAwesomeIcons.lock),
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
-                     validator: (value) =>
+                      validator: (value) =>
                         value == null || value.isEmpty ? 'Campo obrigatório' : null,
                   ),
                   const SizedBox(height: 4),
@@ -76,23 +71,22 @@ class _LoginPageState extends State<LoginPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      // onPressed: _showResetPasswordDialog,
-                      onPressed: null,
-                      child: const Text("Esqueceu sua senha?", /* ... estilo ... */),
+                      onPressed: () { /* Adicionar lógica de redefinir senha aqui */ },
+                      child: const Text("Esqueceu sua senha?", style: TextStyle(color: AppColors.secondary)),
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   // --- Botão de Entrar ---
                   ElevatedButton(
-                    onPressed: _loading ? null : _performLogin, // Chamada para o método de login
+                    onPressed: _loading ? null : _performLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: _loading
-                        ? const SizedBox( /* Indicador de loading */)
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
                         : const Text('Entrar', style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ],
@@ -104,52 +98,31 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Método para executar o processo de login
   Future<void> _performLogin() async {
-    // Valida o formulário
+    // ... seu código do _performLogin (sem alterações) ...
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
     if (!mounted) return;
     setState(() => _loading = true);
-
     try {
       final email = _emailController.text.trim();
       final senha = _passwordController.text.trim();
-
-      // 1. Faz o login com Firebase Authentication
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: senha,
       );
-
       if (!mounted) return;
-
       User? user = userCredential.user;
-
       if (user != null) {
-        // 2. OPCIONAL, mas recomendado: Atualizar dados no Firestore (ex: ultimoLogin)
-        // Isso também garante que o documento do usuário exista na coleção 'usuarios'
-        // e que o documento de conversa seja criado se não existir.
         await _firestoreService.cadastrarOuAtualizarUsuario(
           uid: user.uid,
-          email: user.email!, // Passar o email para garantir que está atualizado
-          // Não precisa passar nome, telefone, etc., a menos que queira atualizá-los aqui.
-          // O `merge: true` no método do FirestoreService cuidará de atualizar apenas os campos fornecidos.
+          email: user.email!,
         );
-
         if (!mounted) return;
-
-        // 3. IMPORTANTE: Define o ID da conversa no AppServices com o UID do usuário.
         _appServices.setConversationId(user.uid);
-
-        // Feedback e navegação
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login realizado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Login realizado com sucesso!'), backgroundColor: Colors.green),
         );
         await Future.delayed(const Duration(milliseconds: 400));
         if (!mounted) return;
@@ -166,21 +139,17 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       String msg;
-      // Seu switch case para tratamento de erros do FirebaseAuthException está bom.
-      // Apenas certifique-se que os códigos de erro estão atualizados.
-      // 'invalid-credential' é um código comum para email/senha errados.
       switch (e.code) {
         case 'user-not-found':
           msg = 'Usuário não encontrado. Verifique o email digitado.';
           break;
-        case 'wrong-password': // Comum para senha incorreta
-        case 'invalid-credential': // Também usado para credenciais inválidas
+        case 'wrong-password':
+        case 'invalid-credential':
           msg = 'Senha incorreta. Tente novamente.';
           break;
         case 'invalid-email':
           msg = 'O e-mail digitado não é válido.';
           break;
-        // ... (outros casos que você já tem) ...
         default:
           msg = 'Erro no login: ${e.message} (cód: ${e.code})';
       }
@@ -193,12 +162,10 @@ class _LoginPageState extends State<LoginPage> {
         SnackBar(content: Text('Erro inesperado ao fazer login: $e'), backgroundColor: Colors.red),
       );
     }
-
     if (!mounted) return;
     setState(() => _loading = false);
   }
 
-  // Lembre-se de liberar os controllers no dispose
   @override
   void dispose() {
     _emailController.dispose();

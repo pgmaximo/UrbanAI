@@ -1,29 +1,33 @@
 import 'dart:convert';
-import 'dart:collection'; // Para usar o HashSet, que evita duplicatas
+import 'dart:collection';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
 import 'package:html/dom.dart' as dom;
-// Removido o import do secret.dart daqui, pois a chave agora é recebida pelo construtor.
 
 class ScrapeService {
   final String apiKey;
 
   ScrapeService({required this.apiKey});
-
-  /// PASSO 1: Busca no Google usando a query cirúrgica da IA.
-  Future<List<String>> getGoogleLinks(String query, {int numResults = 1}) async {
-    if (apiKey.isEmpty) {
-      throw Exception("API_KEY da SerpAPI está vazia.");
+  
+  // --- NOVA FUNÇÃO AUXILIAR ---
+  /// Normaliza uma URL, removendo parâmetros de query (tudo após o '?').
+  /// Isso garante que URLs como ".../imovel/123" e ".../imovel/123?source=google"
+  /// sejam tratadas como a mesma.
+  String _normalizarLink(String url) {
+    final questionMarkIndex = url.indexOf('?');
+    if (questionMarkIndex != -1) {
+      return url.substring(0, questionMarkIndex);
     }
-    final encodedQuery = Uri.encodeComponent(query);
-    final url = Uri.parse(
-        "https://serpapi.com/search.json?q=$encodedQuery&api_key=$apiKey&num=$numResults&hl=pt-BR&gl=br");
+    return url;
+  }
 
+  Future<List<String>> getGoogleLinks(String query, {int numResults = 1}) async {
+    if (apiKey.isEmpty) throw Exception("API_KEY da SerpAPI está vazia.");
+    final encodedQuery = Uri.encodeComponent(query);
+    final url = Uri.parse("https://serpapi.com/search.json?q=$encodedQuery&api_key=$apiKey&num=$numResults&hl=pt-BR&gl=br");
     try {
       final response = await http.get(url);
-      if (response.statusCode != 200) {
-        throw Exception("Erro na requisição à SerpAPI: ${response.statusCode}");
-      }
+      if (response.statusCode != 200) throw Exception("Erro na requisição à SerpAPI: ${response.statusCode}");
       final data = jsonDecode(response.body);
       if (data.containsKey("organic_results")) {
         return (data["organic_results"] as List).map<String>((item) => item["link"].toString()).toList();
@@ -35,102 +39,113 @@ class ScrapeService {
     }
   }
 
-  /// PASSO 2: Extrai os links dos anúncios individuais de uma página de resultados.
+  // --- FUNÇÃO ATUALIZADA ---
   Future<List<String>> _extrairLinksDeAnunciosDaPagina(String urlPaginaResultados) async {
     print("🔎 Visitando a página de resultados: $urlPaginaResultados");
     try {
       final response = await http.get(Uri.parse(urlPaginaResultados));
       if (response.statusCode != 200) return [];
-
       final document = parser.parse(response.body);
       final Set<String> linksDeAnuncios = HashSet();
-
-      List<dom.Element> linkElements = document.querySelectorAll('a');
-
-      for (var linkElement in linkElements) {
-        final href = linkElement.attributes['href'];
-        if (href == null || href.isEmpty) continue;
-
-        if (urlPaginaResultados.contains('quintoandar.com.br')) {
-          if (href.startsWith('/imovel/')) {
-            linksDeAnuncios.add('https://www.quintoandar.com.br$href');
+      
+      document.querySelectorAll('a').forEach((element) {
+        final href = element.attributes['href'];
+        if (href != null && href.isNotEmpty) {
+          String? linkCompleto;
+          if (urlPaginaResultados.contains('quintoandar.com.br') && href.startsWith('/imovel/')) {
+            linkCompleto = 'https://www.quintoandar.com.br$href';
+          } else if (urlPaginaResultados.contains('zapimoveis.com.br') && href.contains('/imovel/')) {
+            if (href.startsWith('http')) linkCompleto = href;
           }
-        } else if (urlPaginaResultados.contains('zapimoveis.com.br')) {
-          if (href.contains('/imovel/')) {
-            if (href.startsWith('http')) linksDeAnuncios.add(href);
+
+          if (linkCompleto != null) {
+            // Adiciona a versão NORMALIZADA do link ao Set
+            linksDeAnuncios.add(_normalizarLink(linkCompleto));
           }
         }
-      }
+      });
       
-      print("✅ Extraídos ${linksDeAnuncios.length} links de anúncios da página.");
+      print("✅ Extraídos ${linksDeAnuncios.length} links de anúncios únicos da página.");
       return linksDeAnuncios.toList();
     } catch (e) {
       print("❌ Erro ao extrair links da página $urlPaginaResultados: $e");
       return [];
     }
   }
-
-  /// PASSO 3: Extrai todo o texto de uma única página de anúncio.
-  Future<String> _extrairTodoTextoDoSite(String url) async {
-    print(" Ganhando o texto de: $url");
+  
+  Future<Map<String, dynamic>> _extrairDadosEstruturados(String url) async {
+    print(" Ganhando dados estruturados de: $url");
     try {
       final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200) {
-        return "Erro ao acessar a página (Status: ${response.statusCode})";
-      }
+      if (response.statusCode != 200) return {"erro": "Erro ao acessar a página (Status: ${response.statusCode})"};
+      
       final document = parser.parse(response.body);
-      final texto = document.body?.text.replaceAll(RegExp(r'\s+'), ' ').trim() ?? '';
-      print("  -> Texto extraído com ${texto.length} caracteres.");
-      return texto;
+      final scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      
+      for (var script in scripts) {
+        final jsonString = script.text;
+        if (jsonString.contains('"@type":"Apartment"') || jsonString.contains('"@type":"House"') || jsonString.contains('"@type":"SingleFamilyResidence"') || jsonString.contains('"@type":"Product"')) {
+          final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
+          print("  -> JSON Estruturado encontrado!");
+          return jsonData;
+        }
+      }
+      print("  -> Nenhum JSON-LD de imóvel encontrado. Usando texto bruto como fallback.");
+      return {"texto_bruto": document.body?.text.replaceAll(RegExp(r'\s+'), ' ').trim() ?? ''};
     } catch (e) {
-      print("❌ Erro ao extrair texto de $url: $e");
-      return "Exceção ao tentar extrair texto da página.";
+      print("❌ Erro ao extrair JSON-LD de $url: $e");
+      return {"erro": "Exceção ao tentar extrair dados estruturados."};
     }
   }
+  
+  Map<String, dynamic> _limparEProcessarDados(Map<String, dynamic> dadosBrutos, {int maxPalavras = 400}) {
+    if (dadosBrutos.containsKey('erro') || dadosBrutos.containsKey('texto_bruto')) {
+      return dadosBrutos;
+    }
+    
+    String descricaoOriginal = dadosBrutos['description'] as String? ?? '';
+    String descricaoResumida = descricaoOriginal.split(RegExp(r'\s+')).take(maxPalavras).join(' ');
+    
+    final dadosLimpos = {
+      'link_original': dadosBrutos['link_original'],
+      'name': dadosBrutos['name'],
+      'description': descricaoResumida,
+      'offers': dadosBrutos['offers'],
+    };
 
-  /// --- FUNÇÃO "MESTRE" ---
-  /// Orquestra o fluxo completo: recebe a query da IA e retorna os conteúdos dos anúncios.
-  Future<List<Map<String, String>>> executarBuscaEExtrairConteudos({
+    print("  -> Dados limpos e descrição truncada para ${maxPalavras} palavras.");
+    return dadosLimpos;
+  }
+
+  Future<List<Map<String, dynamic>>> executarBuscaEExtrairConteudos({
     required String querySerpApi,
-    int totalAnuncios = 3,
+    int totalAnuncios = 5,
+    int maxPalavras = 400,
   }) async {
     print("--- Iniciando processo completo de busca e extração ---");
-    print("  Query da IA: $querySerpApi");
-
-    // 1. Usa a query da IA para encontrar a página de resultados correta.
+    
     final paginasDeResultados = await getGoogleLinks(querySerpApi, numResults: 1);
-    if (paginasDeResultados.isEmpty) {
-      print("Nenhuma página de resultados encontrada no Google para esta query.");
-      return [];
-    }
+    if (paginasDeResultados.isEmpty) return [];
 
-    // 2. Extrai os links dos anúncios individuais dessa página.
     final Set<String> linksDeAnuncios = HashSet();
     for (String urlPagina in paginasDeResultados) {
-      final linksDaPagina = await _extrairLinksDeAnunciosDaPagina(urlPagina);
-      linksDeAnuncios.addAll(linksDaPagina);
+      linksDeAnuncios.addAll(await _extrairLinksDeAnunciosDaPagina(urlPagina));
     }
-    
-    if (linksDeAnuncios.isEmpty) {
-        print("Nenhum link de anúncio específico foi extraído da página de resultados.");
-        return [];
-    }
+    if (linksDeAnuncios.isEmpty) return [];
 
-    // 3. Pega o número desejado de anúncios e extrai o conteúdo de cada um.
-    final List<Map<String, String>> resultadosFinais = [];
+    final List<Map<String, dynamic>> resultadosFinais = [];
     final linksParaProcessar = linksDeAnuncios.take(totalAnuncios).toList();
     
-    print("\nProcessando ${linksParaProcessar.length} anúncios para extração de conteúdo...");
+    print("\nProcessando ${linksParaProcessar.length} anúncios para extração e limpeza...");
     for (String linkAnuncio in linksParaProcessar) {
-      final textoAnuncio = await _extrairTodoTextoDoSite(linkAnuncio);
-      resultadosFinais.add({
-        'link': linkAnuncio,
-        'texto': textoAnuncio,
-      });
-      await Future.delayed(const Duration(milliseconds: 500)); 
+      final dadosEstruturadosBrutos = await _extrairDadosEstruturados(linkAnuncio);
+      dadosEstruturadosBrutos['link_original'] = linkAnuncio;
+      final dadosLimpos = _limparEProcessarDados(dadosEstruturadosBrutos, maxPalavras: maxPalavras);
+      resultadosFinais.add(dadosLimpos);
+      await Future.delayed(const Duration(milliseconds: 200)); 
     }
 
-    print("🎉 Extração de conteúdo finalizada!");
+    print("🎉 Extração e limpeza de dados finalizada!");
     return resultadosFinais;
   }
 }

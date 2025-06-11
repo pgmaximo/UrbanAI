@@ -21,25 +21,16 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -61,4 +52,33 @@ class DefaultFirebaseOptions {
     storageBucket: 'pi-urbanai.firebasestorage.app',
     measurementId: 'G-DTTJ05TCRS',
   );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyDyqbEHRem8xrC4mzaz4y2nIFjd7JwGVIA',
+    appId: '1:275767774324:android:81f0b5b14ac2633a491521',
+    messagingSenderId: '275767774324',
+    projectId: 'pi-urbanai',
+    storageBucket: 'pi-urbanai.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyArPs_iGqKrnPzNWcMI_PiuW6Ga1A8emYI',
+    appId: '1:275767774324:ios:dbb9c0c69a38178a491521',
+    messagingSenderId: '275767774324',
+    projectId: 'pi-urbanai',
+    storageBucket: 'pi-urbanai.firebasestorage.app',
+    iosClientId: '275767774324-cekrk5f060vffsl4mlldpeosfdiu0oqd.apps.googleusercontent.com',
+    iosBundleId: 'com.example.urbanai',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBFF61WGpdtbBIMxIlTDl17QiUUdzSalL0',
+    appId: '1:275767774324:web:e1b15d3cb956b86e491521',
+    messagingSenderId: '275767774324',
+    projectId: 'pi-urbanai',
+    authDomain: 'pi-urbanai.firebaseapp.com',
+    storageBucket: 'pi-urbanai.firebasestorage.app',
+    measurementId: 'G-PD7HPVZQ7B',
+  );
+
 }

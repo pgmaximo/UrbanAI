@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "275767774324",
+    "project_id": "pi-urbanai",
+    "storage_bucket": "pi-urbanai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:275767774324:android:81f0b5b14ac2633a491521",
+        "android_client_info": {
+          "package_name": "com.example.urbanai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "275767774324-f4irl1fqot8e1o54tafdlslfhfhlfppj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDyqbEHRem8xrC4mzaz4y2nIFjd7JwGVIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "275767774324-f4irl1fqot8e1o54tafdlslfhfhlfppj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "275767774324-cekrk5f060vffsl4mlldpeosfdiu0oqd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.urbanai"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
