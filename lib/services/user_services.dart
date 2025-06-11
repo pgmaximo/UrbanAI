@@ -40,7 +40,6 @@ class UserServices {
         final List<Map<String, dynamic>> dadosColetados = 
             await _scrapeService.executarBuscaEExtrairConteudos(
                 querySerpApi: query, 
-                totalAnuncios: 3
             );
 
         if (dadosColetados.isEmpty) {

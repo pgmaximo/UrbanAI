@@ -2,17 +2,12 @@ import 'dart:convert';
 import 'dart:collection';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
-import 'package:html/dom.dart' as dom;
 
 class ScrapeService {
   final String apiKey;
 
   ScrapeService({required this.apiKey});
-  
-  // --- NOVA FUNÇÃO AUXILIAR ---
-  /// Normaliza uma URL, removendo parâmetros de query (tudo após o '?').
-  /// Isso garante que URLs como ".../imovel/123" e ".../imovel/123?source=google"
-  /// sejam tratadas como a mesma.
+
   String _normalizarLink(String url) {
     final questionMarkIndex = url.indexOf('?');
     if (questionMarkIndex != -1) {
@@ -39,7 +34,6 @@ class ScrapeService {
     }
   }
 
-  // --- FUNÇÃO ATUALIZADA ---
   Future<List<String>> _extrairLinksDeAnunciosDaPagina(String urlPaginaResultados) async {
     print("🔎 Visitando a página de resultados: $urlPaginaResultados");
     try {
@@ -59,7 +53,6 @@ class ScrapeService {
           }
 
           if (linkCompleto != null) {
-            // Adiciona a versão NORMALIZADA do link ao Set
             linksDeAnuncios.add(_normalizarLink(linkCompleto));
           }
         }
@@ -117,24 +110,29 @@ class ScrapeService {
     return dadosLimpos;
   }
 
+  /// --- FUNÇÃO "MESTRE" CORRIGIDA ---
   Future<List<Map<String, dynamic>>> executarBuscaEExtrairConteudos({
     required String querySerpApi,
-    int totalAnuncios = 5,
+    int paginasDoGoogle = 2,
+    int anunciosPorPagina = 3,
     int maxPalavras = 400,
   }) async {
     print("--- Iniciando processo completo de busca e extração ---");
     
-    final paginasDeResultados = await getGoogleLinks(querySerpApi, numResults: 1);
+    // ############ CORREÇÃO APLICADA AQUI ############
+    // Agora usa o parâmetro 'paginasDoGoogle' em vez de um valor fixo.
+    final paginasDeResultados = await getGoogleLinks(querySerpApi, numResults: paginasDoGoogle);
     if (paginasDeResultados.isEmpty) return [];
 
     final Set<String> linksDeAnuncios = HashSet();
     for (String urlPagina in paginasDeResultados) {
-      linksDeAnuncios.addAll(await _extrairLinksDeAnunciosDaPagina(urlPagina));
+      final linksDaPagina = await _extrairLinksDeAnunciosDaPagina(urlPagina);
+      linksDeAnuncios.addAll(linksDaPagina.take(anunciosPorPagina));
     }
     if (linksDeAnuncios.isEmpty) return [];
 
     final List<Map<String, dynamic>> resultadosFinais = [];
-    final linksParaProcessar = linksDeAnuncios.take(totalAnuncios).toList();
+    final linksParaProcessar = linksDeAnuncios.toList();
     
     print("\nProcessando ${linksParaProcessar.length} anúncios para extração e limpeza...");
     for (String linkAnuncio in linksParaProcessar) {
